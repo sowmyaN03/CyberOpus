@@ -1,0 +1,95 @@
+.hero {
+  background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%);
+  color: #fff;
+  padding: 5rem 1.5rem;
+  text-align: center;
+}
+
+.heroContent {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.heroTitle {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin: 0 0 1rem;
+  line-height: 1.2;
+}
+
+.heroSubtitle {
+  font-size: 1.1rem;
+  color: rgba(255,255,255,0.85);
+  margin: 0 0 2rem;
+}
+
+.heroCta {
+  display: inline-block;
+  background: #e67e22;
+  color: #fff;
+  text-decoration: none;
+  padding: 0.75rem 2rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.heroCta:hover {
+  background: #d4711e;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.section {
+  margin-bottom: 3rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.sectionTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1a3a5c;
+  margin: 0 0 1rem;
+}
+
+.viewAll {
+  color: #e67e22;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.categoryChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  background: #f0f4f8;
+  border: 1px solid #d1d5db;
+  border-radius: 20px;
+  color: #1a3a5c;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+}
+
+.chip:hover {
+  background: #1a3a5c;
+  color: #fff;
+  border-color: #1a3a5c;
+}

@@ -1,0 +1,84 @@
+.nav {
+  background: #1a3a5c;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.brand {
+  color: #fff;
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.links {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.link {
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.15s;
+}
+
+.link:hover {
+  color: #fff;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.cartBtn {
+  color: #fff;
+  text-decoration: none;
+  position: relative;
+}
+
+.logoutBtn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.5);
+  color: #fff;
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: border-color 0.15s;
+}
+
+.logoutBtn:hover {
+  border-color: #fff;
+}
+
+.registerBtn {
+  background: #e67e22;
+  color: #fff;
+  text-decoration: none;
+  padding: 0.3rem 0.9rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+
+.registerBtn:hover {
+  background: #d4711e;
+}

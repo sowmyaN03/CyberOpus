@@ -1,0 +1,41 @@
+package com.cyberopus.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+
+@Data
+public class AddressRequest {
+
+    @NotBlank(message = "Full name is required")
+    @Size(max = 200)
+    private String fullName;
+
+    @NotBlank(message = "Address line 1 is required")
+    @Size(max = 300)
+    private String line1;
+
+    @Size(max = 300)
+    private String line2;
+
+    @NotBlank(message = "City is required")
+    @Size(max = 100)
+    private String city;
+
+    @NotBlank(message = "State is required")
+    @Size(max = 100)
+    private String state;
+
+    @NotBlank(message = "Postal code is required")
+    @Size(max = 20)
+    private String postalCode;
+
+    @NotBlank(message = "Country is required")
+    @Size(max = 100)
+    private String country;
+
+    @Size(max = 20)
+    private String phone;
+
+    private Boolean isDefault = false;
+}

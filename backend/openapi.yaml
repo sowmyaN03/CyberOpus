@@ -1,0 +1,833 @@
+openapi: 3.0.3
+info:
+  title: CyberOpus API
+  description: |
+    IBM AI Specialist Cloud FullStack Capstone – CyberOpus E-Bookstore Backend.
+
+    ## Authentication
+    Most endpoints require a Bearer JWT token. Obtain one via `POST /api/auth/login`.
+    Click **Authorize** and enter: `Bearer <your_token>`
+
+    ## Test Payment
+    Set `cardHolderName` to `FAIL_TEST` to simulate a failed payment.
+    Any other value produces a successful payment.
+
+    ## Reward Points
+    - 10 points earned per $1 spent
+    - 100 points = $1 discount
+    - Maximum 20% of order subtotal redeemable per order
+  version: 1.0.0
+  contact:
+    name: CyberOpus Capstone
+    email: admin@cyberopus.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Authentication
+    description: Register and login
+  - name: Books
+    description: Book catalogue – public read, ADMIN write
+  - name: Categories
+    description: Book categories – public read, ADMIN write
+  - name: Brands
+    description: Publishers / brands – public read, ADMIN write
+  - name: Cart
+    description: Shopping cart management (authenticated)
+  - name: Addresses
+    description: Delivery address management (authenticated)
+  - name: Checkout
+    description: Order placement (authenticated)
+  - name: Orders
+    description: Order history and management (authenticated)
+  - name: Payments
+    description: Payment status (authenticated)
+  - name: Rewards
+    description: Reward / gift points (authenticated)
+  - name: Recommendations
+    description: Personalised book recommendations (authenticated)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # -------------------------------------------------------
+    # Auth
+    # -------------------------------------------------------
+    RegisterRequest:
+      type: object
+      required: [firstName, lastName, email, password]
+      properties:
+        firstName: { type: string, maxLength: 100, example: Alice }
+        lastName:  { type: string, maxLength: 100, example: Demo }
+        email:     { type: string, format: email,  example: alice@demo.com }
+        password:  { type: string, minLength: 8, maxLength: 100, example: Password123! }
+        phone:     { type: string, maxLength: 20,  example: "555-0101" }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string, format: email, example: alice@demo.com }
+        password: { type: string, example: Password123! }
+
+    UserResponse:
+      type: object
+      properties:
+        id:        { type: integer, format: int64 }
+        firstName: { type: string }
+        lastName:  { type: string }
+        email:     { type: string, format: email }
+        phone:     { type: string }
+        role:      { type: string, enum: [CUSTOMER, ADMIN] }
+        createdAt: { type: string, format: date-time }
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken: { type: string, example: eyJhbGciOiJIUzI1NiJ9... }
+        tokenType:   { type: string, example: Bearer }
+        expiresIn:   { type: integer, example: 86400 }
+        user:        { $ref: '#/components/schemas/UserResponse' }
+
+    # -------------------------------------------------------
+    # Catalogue
+    # -------------------------------------------------------
+    CategoryResponse:
+      type: object
+      properties:
+        id:          { type: integer, format: int64 }
+        name:        { type: string }
+        description: { type: string }
+        createdAt:   { type: string, format: date-time }
+
+    BrandResponse:
+      type: object
+      properties:
+        id:          { type: integer, format: int64 }
+        name:        { type: string }
+        description: { type: string }
+        createdAt:   { type: string, format: date-time }
+
+    BookResponse:
+      type: object
+      properties:
+        id:                   { type: integer, format: int64 }
+        title:                { type: string }
+        author:               { type: string }
+        description:          { type: string }
+        isbn:                 { type: string }
+        price:                { type: number, format: double, example: 39.99 }
+        stockQuantity:        { type: integer }
+        imageUrl:             { type: string }
+        category:             { $ref: '#/components/schemas/CategoryResponse' }
+        brand:                { $ref: '#/components/schemas/BrandResponse' }
+        available:            { type: boolean }
+        createdAt:            { type: string, format: date-time }
+        updatedAt:            { type: string, format: date-time }
+        tentativeDeliveryDate:{ type: string, format: date, example: "2025-06-01" }
+
+    BookRequest:
+      type: object
+      required: [title, author, price, stockQuantity, categoryId, brandId]
+      properties:
+        title:         { type: string, maxLength: 500 }
+        author:        { type: string, maxLength: 255 }
+        description:   { type: string }
+        isbn:          { type: string, maxLength: 20 }
+        price:         { type: number, format: double, minimum: 0.01 }
+        stockQuantity: { type: integer, minimum: 0 }
+        imageUrl:      { type: string, maxLength: 1000 }
+        categoryId:    { type: integer, format: int64 }
+        brandId:       { type: integer, format: int64 }
+        available:     { type: boolean, default: true }
+
+    CategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:        { type: string, maxLength: 100 }
+        description: { type: string, maxLength: 500 }
+
+    BrandRequest:
+      type: object
+      required: [name]
+      properties:
+        name:        { type: string, maxLength: 200 }
+        description: { type: string, maxLength: 500 }
+
+    PagedBooks:
+      type: object
+      properties:
+        content:          { type: array, items: { $ref: '#/components/schemas/BookResponse' } }
+        totalElements:    { type: integer }
+        totalPages:       { type: integer }
+        number:           { type: integer }
+        size:             { type: integer }
+
+    # -------------------------------------------------------
+    # Cart
+    # -------------------------------------------------------
+    CartItemRequest:
+      type: object
+      required: [bookId, quantity]
+      properties:
+        bookId:   { type: integer, format: int64 }
+        quantity: { type: integer, minimum: 1 }
+
+    UpdateCartItemRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity: { type: integer, minimum: 1 }
+
+    CartItemResponse:
+      type: object
+      properties:
+        itemId:       { type: integer, format: int64 }
+        bookId:       { type: integer, format: int64 }
+        bookTitle:    { type: string }
+        bookAuthor:   { type: string }
+        imageUrl:     { type: string }
+        priceAtAdd:   { type: number }
+        currentPrice: { type: number }
+        quantity:     { type: integer }
+        lineTotal:    { type: number }
+
+    CartResponse:
+      type: object
+      properties:
+        cartId:    { type: integer, format: int64 }
+        items:     { type: array, items: { $ref: '#/components/schemas/CartItemResponse' } }
+        subtotal:  { type: number }
+        itemCount: { type: integer }
+
+    # -------------------------------------------------------
+    # Addresses
+    # -------------------------------------------------------
+    AddressRequest:
+      type: object
+      required: [fullName, line1, city, state, postalCode, country]
+      properties:
+        fullName:   { type: string, maxLength: 200 }
+        line1:      { type: string, maxLength: 300 }
+        line2:      { type: string, maxLength: 300 }
+        city:       { type: string, maxLength: 100 }
+        state:      { type: string, maxLength: 100 }
+        postalCode: { type: string, maxLength: 20 }
+        country:    { type: string, maxLength: 100, default: US }
+        phone:      { type: string, maxLength: 20 }
+        isDefault:  { type: boolean, default: false }
+
+    AddressResponse:
+      type: object
+      properties:
+        id:         { type: integer, format: int64 }
+        fullName:   { type: string }
+        line1:      { type: string }
+        line2:      { type: string }
+        city:       { type: string }
+        state:      { type: string }
+        postalCode: { type: string }
+        country:    { type: string }
+        phone:      { type: string }
+        isDefault:  { type: boolean }
+        createdAt:  { type: string, format: date-time }
+
+    # -------------------------------------------------------
+    # Checkout
+    # -------------------------------------------------------
+    CheckoutRequest:
+      type: object
+      required: [addressId, paymentMethod]
+      properties:
+        addressId:            { type: integer, format: int64 }
+        paymentMethod:        { type: string, enum: [CREDIT_CARD, DEBIT_CARD] }
+        maskedCardNumber:     { type: string, pattern: '^\*{4}\d{4}$', example: "****1234" }
+        cardHolderName:       { type: string, maxLength: 200, example: Alice Demo }
+        rewardPointsToRedeem: { type: integer, minimum: 0, default: 0 }
+
+    # -------------------------------------------------------
+    # Orders
+    # -------------------------------------------------------
+    OrderItemResponse:
+      type: object
+      properties:
+        id:                   { type: integer, format: int64 }
+        bookId:               { type: integer, format: int64 }
+        bookTitleSnapshot:    { type: string }
+        bookAuthorSnapshot:   { type: string }
+        priceSnapshot:        { type: number }
+        quantity:             { type: integer }
+        lineTotal:            { type: number }
+
+    PaymentResponse:
+      type: object
+      properties:
+        id:               { type: integer, format: int64 }
+        paymentMethod:    { type: string, enum: [CREDIT_CARD, DEBIT_CARD] }
+        maskedCardNumber: { type: string }
+        cardHolderName:   { type: string }
+        transactionRef:   { type: string }
+        amount:           { type: number }
+        status:           { type: string, enum: [PENDING, SUCCESS, FAILED, REFUNDED] }
+        initiatedAt:      { type: string, format: date-time }
+        completedAt:      { type: string, format: date-time }
+
+    OrderResponse:
+      type: object
+      properties:
+        id:              { type: integer, format: int64 }
+        orderNumber:     { type: string, example: ORD-A1B2C3D4 }
+        status:          { type: string, enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED] }
+        subtotal:        { type: number }
+        rewardDiscount:  { type: number }
+        deliveryCharge:  { type: number }
+        totalAmount:     { type: number }
+        addressSnapshot: { type: string, description: JSON snapshot of delivery address }
+        placedAt:        { type: string, format: date-time }
+        items:           { type: array, items: { $ref: '#/components/schemas/OrderItemResponse' } }
+        payment:         { $ref: '#/components/schemas/PaymentResponse' }
+
+    PagedOrders:
+      type: object
+      properties:
+        content:       { type: array, items: { $ref: '#/components/schemas/OrderResponse' } }
+        totalElements: { type: integer }
+        totalPages:    { type: integer }
+        number:        { type: integer }
+        size:          { type: integer }
+
+    BuyAgainRequest:
+      type: object
+      required: [orderItemId]
+      properties:
+        orderItemId: { type: integer, format: int64 }
+        quantity:    { type: integer, minimum: 1, default: 1 }
+
+    # -------------------------------------------------------
+    # Rewards
+    # -------------------------------------------------------
+    RewardTransactionResponse:
+      type: object
+      properties:
+        id:          { type: integer, format: int64 }
+        type:        { type: string, enum: [EARN, REDEEM, REFUND] }
+        points:      { type: integer }
+        description: { type: string }
+        orderId:     { type: integer, format: int64 }
+        createdAt:   { type: string, format: date-time }
+
+    RewardResponse:
+      type: object
+      properties:
+        balance:      { type: integer, example: 500 }
+        transactions: { type: array, items: { $ref: '#/components/schemas/RewardTransactionResponse' } }
+
+    # -------------------------------------------------------
+    # Errors
+    # -------------------------------------------------------
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp: { type: string, format: date-time }
+        status:    { type: integer }
+        error:     { type: string }
+        message:   { type: string }
+        path:      { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:   { type: string }
+              message: { type: string }
+
+# -------------------------------------------------------
+# Paths
+# -------------------------------------------------------
+paths:
+
+  # ---- Auth ----
+  /api/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new customer account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201': { description: User created, content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } } }
+        '409': { description: Email already registered, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '422': { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login and receive a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { description: JWT token, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' } } } }
+        '400': { description: Invalid credentials, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+
+  /api/auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current authenticated user profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: User profile, content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } } }
+        '401': { description: Unauthorized }
+
+  # ---- Books ----
+  /api/books:
+    get:
+      tags: [Books]
+      summary: List all available books (paginated)
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, default: 20 } }
+        - { name: sort, in: query, schema: { type: string, example: "title,asc" } }
+      responses:
+        '200': { description: Paginated list of books, content: { application/json: { schema: { $ref: '#/components/schemas/PagedBooks' } } } }
+    post:
+      tags: [Books]
+      summary: Create a book (ADMIN only)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookRequest' }
+      responses:
+        '201': { description: Book created, content: { application/json: { schema: { $ref: '#/components/schemas/BookResponse' } } } }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden – ADMIN role required }
+        '422': { description: Validation error }
+
+  /api/books/search:
+    get:
+      tags: [Books]
+      summary: Search and filter books
+      parameters:
+        - { name: q,          in: query, schema: { type: string }, description: Keyword (title/author/description) }
+        - { name: categoryId, in: query, schema: { type: integer, format: int64 } }
+        - { name: brandId,    in: query, schema: { type: integer, format: int64 } }
+        - { name: minPrice,   in: query, schema: { type: number } }
+        - { name: maxPrice,   in: query, schema: { type: number } }
+        - { name: page,       in: query, schema: { type: integer, default: 0 } }
+        - { name: size,       in: query, schema: { type: integer, default: 20 } }
+        - { name: sort,       in: query, schema: { type: string } }
+      responses:
+        '200': { description: Search results, content: { application/json: { schema: { $ref: '#/components/schemas/PagedBooks' } } } }
+
+  /api/books/{id}:
+    get:
+      tags: [Books]
+      summary: Get book detail by ID
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Book detail, content: { application/json: { schema: { $ref: '#/components/schemas/BookResponse' } } } }
+        '404': { description: Book not found }
+    put:
+      tags: [Books]
+      summary: Update a book (ADMIN only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookRequest' }
+      responses:
+        '200': { description: Updated book }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Book not found }
+    delete:
+      tags: [Books]
+      summary: Delete a book (ADMIN only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '204': { description: Deleted }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Book not found }
+
+  /api/books/{id}/related:
+    get:
+      tags: [Books]
+      summary: Get related books (same category, up to 8)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Related books, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/BookResponse' } } } } }
+        '404': { description: Book not found }
+
+  # ---- Categories ----
+  /api/categories:
+    get:
+      tags: [Categories]
+      summary: List all categories
+      responses:
+        '200': { description: Categories, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CategoryResponse' } } } } }
+    post:
+      tags: [Categories]
+      summary: Create a category (ADMIN only)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryRequest' }
+      responses:
+        '201': { description: Created }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+
+  /api/categories/{id}:
+    get:
+      tags: [Categories]
+      summary: Get category by ID
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Category }
+        '404': { description: Not found }
+    put:
+      tags: [Categories]
+      summary: Update a category (ADMIN only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryRequest' }
+      responses:
+        '200': { description: Updated }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+    delete:
+      tags: [Categories]
+      summary: Delete a category (ADMIN only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '204': { description: Deleted }
+
+  /api/categories/{id}/books:
+    get:
+      tags: [Categories]
+      summary: List books by category
+      parameters:
+        - { name: id,   in: path,  required: true, schema: { type: integer, format: int64 } }
+        - { name: page, in: query, schema: { type: integer, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, default: 20 } }
+      responses:
+        '200': { description: Books in category }
+        '404': { description: Category not found }
+
+  # ---- Brands ----
+  /api/brands:
+    get:
+      tags: [Brands]
+      summary: List all brands/publishers
+      responses:
+        '200': { description: Brands, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/BrandResponse' } } } } }
+    post:
+      tags: [Brands]
+      summary: Create a brand (ADMIN only)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BrandRequest' }
+      responses:
+        '201': { description: Created }
+
+  /api/brands/{id}:
+    get:
+      tags: [Brands]
+      summary: Get brand by ID
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Brand }
+        '404': { description: Not found }
+    put:
+      tags: [Brands]
+      summary: Update brand (ADMIN only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BrandRequest' }
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Brands]
+      summary: Delete brand (ADMIN only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '204': { description: Deleted }
+
+  /api/brands/{id}/books:
+    get:
+      tags: [Brands]
+      summary: List books by brand
+      parameters:
+        - { name: id,   in: path,  required: true, schema: { type: integer, format: int64 } }
+        - { name: page, in: query, schema: { type: integer, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, default: 20 } }
+      responses:
+        '200': { description: Books by brand }
+
+  # ---- Cart ----
+  /api/cart:
+    get:
+      tags: [Cart]
+      summary: View current cart with totals
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Cart, content: { application/json: { schema: { $ref: '#/components/schemas/CartResponse' } } } }
+        '401': { description: Unauthorized }
+    delete:
+      tags: [Cart]
+      summary: Clear entire cart
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Cart cleared }
+
+  /api/cart/items:
+    post:
+      tags: [Cart]
+      summary: Add a book to the cart
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CartItemRequest' }
+      responses:
+        '201': { description: Updated cart, content: { application/json: { schema: { $ref: '#/components/schemas/CartResponse' } } } }
+        '400': { description: Book unavailable }
+        '404': { description: Book not found }
+        '409': { description: Insufficient stock }
+        '422': { description: Validation error }
+
+  /api/cart/items/{itemId}:
+    put:
+      tags: [Cart]
+      summary: Update cart item quantity
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCartItemRequest' }
+      responses:
+        '200': { description: Updated cart }
+        '409': { description: Insufficient stock }
+    delete:
+      tags: [Cart]
+      summary: Remove a cart item
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Updated cart }
+        '404': { description: Item not found }
+
+  # ---- Addresses ----
+  /api/addresses:
+    get:
+      tags: [Addresses]
+      summary: List all delivery addresses for the current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Address list, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/AddressResponse' } } } } }
+    post:
+      tags: [Addresses]
+      summary: Add a new delivery address
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressRequest' }
+      responses:
+        '201': { description: Address created, content: { application/json: { schema: { $ref: '#/components/schemas/AddressResponse' } } } }
+        '422': { description: Validation error }
+
+  /api/addresses/{id}:
+    put:
+      tags: [Addresses]
+      summary: Update an existing address
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressRequest' }
+      responses:
+        '200': { description: Updated address }
+        '403': { description: Forbidden – not your address }
+        '404': { description: Address not found }
+    delete:
+      tags: [Addresses]
+      summary: Delete an address
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '204': { description: Deleted }
+        '403': { description: Forbidden }
+
+  /api/addresses/{id}/default:
+    patch:
+      tags: [Addresses]
+      summary: Set address as default
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Default set, content: { application/json: { schema: { $ref: '#/components/schemas/AddressResponse' } } } }
+
+  # ---- Checkout ----
+  /api/checkout:
+    post:
+      tags: [Checkout]
+      summary: Place an order (validates cart, applies rewards, processes simulated payment)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutRequest' }
+            example:
+              addressId: 1
+              paymentMethod: CREDIT_CARD
+              maskedCardNumber: "****1234"
+              cardHolderName: Alice Demo
+              rewardPointsToRedeem: 100
+      responses:
+        '201': { description: Order placed, content: { application/json: { schema: { $ref: '#/components/schemas/OrderResponse' } } } }
+        '400': { description: Empty cart / invalid address / insufficient stock or points }
+        '401': { description: Unauthorized }
+
+  # ---- Orders ----
+  /api/orders:
+    get:
+      tags: [Orders]
+      summary: Get order history (paginated)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, default: 10 } }
+      responses:
+        '200': { description: Order history, content: { application/json: { schema: { $ref: '#/components/schemas/PagedOrders' } } } }
+
+  /api/orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Get order detail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Order detail, content: { application/json: { schema: { $ref: '#/components/schemas/OrderResponse' } } } }
+        '403': { description: Forbidden }
+        '404': { description: Order not found }
+
+  /api/orders/{id}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel an order (only within 48 hours of placement)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Order cancelled, content: { application/json: { schema: { $ref: '#/components/schemas/OrderResponse' } } } }
+        '400': { description: 48-hour window expired or order not cancellable }
+        '403': { description: Forbidden }
+        '404': { description: Order not found }
+
+  /api/orders/{orderId}/buy-again:
+    post:
+      tags: [Orders]
+      summary: Add a previously purchased book back to the cart at current price
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: orderId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BuyAgainRequest' }
+      responses:
+        '200': { description: Updated cart, content: { application/json: { schema: { $ref: '#/components/schemas/CartResponse' } } } }
+        '400': { description: Book no longer available }
+        '403': { description: Forbidden }
+        '404': { description: Order or item not found }
+
+  # ---- Payments ----
+  /api/payments/order/{orderId}:
+    get:
+      tags: [Payments]
+      summary: Get payment details for an order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: orderId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Payment detail, content: { application/json: { schema: { $ref: '#/components/schemas/PaymentResponse' } } } }
+        '403': { description: Forbidden }
+        '404': { description: Payment not found }
+
+  # ---- Rewards ----
+  /api/rewards:
+    get:
+      tags: [Rewards]
+      summary: Get reward points balance and transaction history
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Reward balance and history, content: { application/json: { schema: { $ref: '#/components/schemas/RewardResponse' } } } }
+
+  # ---- Recommendations ----
+  /api/recommendations:
+    get:
+      tags: [Recommendations]
+      summary: Get personalised book recommendations based on order history
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 10, maximum: 50 } }
+      responses:
+        '200': { description: Recommended books, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/BookResponse' } } } } }
